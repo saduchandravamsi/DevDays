@@ -1,0 +1,67 @@
+---
+interface Props {
+  currentPage: number;
+  totalPages: number;
+}
+
+const { currentPage, totalPages } = Astro.props;
+
+const previousPage = currentPage - 1;
+const nextPage = currentPage + 1;
+---
+
+{totalPages > 1 && (
+  <nav
+    aria-label="Game list pagination"
+    class="flex items-center justify-center gap-4 mt-10"
+    data-testid="pagination"
+  >
+    {currentPage > 1 ? (
+      <a
+        href={previousPage === 1 ? '/' : `/page/${previousPage}`}
+        rel="prev"
+        class="px-4 py-2 rounded-lg bg-slate-800 text-slate-100 border border-slate-700 hover:border-blue-500 hover:text-blue-400 transition-colors"
+        data-testid="pagination-previous"
+        aria-label={`Go to page ${previousPage}`}
+      >
+        ← Previous
+      </a>
+    ) : (
+      <span
+        class="px-4 py-2 rounded-lg bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
+        aria-disabled="true"
+        data-testid="pagination-previous-disabled"
+      >
+        ← Previous
+      </span>
+    )}
+
+    <span
+      class="text-slate-300"
+      aria-current="page"
+      data-testid="pagination-current"
+    >
+      Page {currentPage} of {totalPages}
+    </span>
+
+    {currentPage < totalPages ? (
+      <a
+        href={`/page/${nextPage}`}
+        rel="next"
+        class="px-4 py-2 rounded-lg bg-slate-800 text-slate-100 border border-slate-700 hover:border-blue-500 hover:text-blue-400 transition-colors"
+        data-testid="pagination-next"
+        aria-label={`Go to page ${nextPage}`}
+      >
+        Next →
+      </a>
+    ) : (
+      <span
+        class="px-4 py-2 rounded-lg bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
+        aria-disabled="true"
+        data-testid="pagination-next-disabled"
+      >
+        Next →
+      </span>
+    )}
+  </nav>
+)}

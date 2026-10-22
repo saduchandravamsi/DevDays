@@ -133,4 +133,128 @@ test.describe('Game Listing and Navigation', () => {
       await expect(page.getByTestId('not-found-home-link')).toBeVisible();
     });
   });
+
+  // Pagination tests
+
+  test('should display pagination controls on the first page', async ({ page }) => {
+    await test.step('Navigate to homepage', async () => {
+      await page.goto('/');
+    });
+
+    await test.step('Verify pagination is visible', async () => {
+      const pagination = page.getByTestId('pagination');
+
+      await expect(pagination).toBeVisible();
+      await expect(pagination).toHaveAttribute(
+        'aria-label',
+        'Game list pagination',
+      );
+    });
+
+    await test.step('Verify first page state', async () => {
+      await expect(page.getByTestId('pagination-current')).toHaveText(
+        'Page 1 of 4',
+      );
+
+      await expect(page.getByTestId('pagination-next')).toBeVisible();
+      await expect(
+        page.getByTestId('pagination-previous-disabled'),
+      ).toBeVisible();
+    });
+  });
+
+  test('should display six games on the first page', async ({ page }) => {
+    await page.goto('/');
+
+    const gameCards = page.getByTestId('game-card');
+
+    await expect(gameCards).toHaveCount(6);
+  });
+
+  test('should navigate to the next page', async ({ page }) => {
+    await test.step('Navigate to homepage', async () => {
+      await page.goto('/');
+    });
+
+    await test.step('Click next pagination control', async () => {
+      await page.getByTestId('pagination-next').click();
+    });
+
+    await test.step('Verify page two is displayed', async () => {
+      await expect(page).toHaveURL('/page/2');
+
+      await expect(page.getByTestId('pagination-current')).toHaveText(
+        'Page 2 of 4',
+      );
+    });
+
+    await test.step('Verify games on page two', async () => {
+      await expect(page.getByTestId('game-card')).toHaveCount(6);
+    });
+  });
+
+  test('should navigate back to the previous page', async ({ page }) => {
+    await test.step('Navigate to page two', async () => {
+      await page.goto('/page/2');
+    });
+
+    await test.step('Verify previous control is available', async () => {
+      await expect(page.getByTestId('pagination-previous')).toBeVisible();
+    });
+
+    await test.step('Click previous pagination control', async () => {
+      await page.getByTestId('pagination-previous').click();
+    });
+
+    await test.step('Verify homepage is displayed', async () => {
+      await expect(page).toHaveURL('/');
+      await expect(page.getByTestId('pagination-current')).toHaveText(
+        'Page 1 of 4',
+      );
+    });
+  });
+
+  test('should display the remaining games on the last page', async ({ page }) => {
+    await test.step('Navigate to last page', async () => {
+      await page.goto('/page/4');
+    });
+
+    await test.step('Verify last page state', async () => {
+      await expect(page.getByTestId('pagination-current')).toHaveText(
+        'Page 4 of 4',
+      );
+    });
+
+    await test.step('Verify remaining games are displayed', async () => {
+      await expect(page.getByTestId('game-card')).toHaveCount(3);
+    });
+
+    await test.step('Verify next control is disabled', async () => {
+      await expect(
+        page.getByTestId('pagination-next-disabled'),
+      ).toBeVisible();
+    });
+  });
+
+  test('should have accessible pagination controls', async ({ page }) => {
+    await page.goto('/');
+
+    const pagination = page.getByTestId('pagination');
+
+    await expect(pagination).toBeVisible();
+
+    await expect(pagination).toHaveAttribute(
+      'aria-label',
+      'Game list pagination',
+    );
+
+    await expect(page.getByTestId('pagination-next')).toHaveAttribute(
+      'aria-label',
+      'Go to page 2',
+    );
+
+    await expect(
+      page.getByTestId('pagination-previous-disabled'),
+    ).toHaveAttribute('aria-disabled', 'true');
+  });
 });
