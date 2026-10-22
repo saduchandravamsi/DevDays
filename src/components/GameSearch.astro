@@ -1,0 +1,96 @@
+---
+---
+
+<div class="mb-8">
+  <label
+    for="game-search"
+    class="block text-sm font-medium text-slate-200 mb-2"
+  >
+    Search games by title
+  </label>
+
+  <div class="relative max-w-xl">
+    <input
+      id="game-search"
+      type="search"
+      placeholder="Search games..."
+      autocomplete="off"
+      data-testid="game-search"
+      class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+      aria-describedby="game-search-help"
+    />
+
+    <p
+      id="game-search-help"
+      class="mt-2 text-sm text-slate-400"
+    >
+      Search by game title.
+    </p>
+  </div>
+</div>
+
+<script>
+  import { filterGamesByTitle } from '../lib/gameSearch';
+
+  const searchInput = document.querySelector<HTMLInputElement>('#game-search');
+  const gameCards = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-testid="game-card"]'),
+  );
+  const gamesGrid = document.querySelector<HTMLElement>(
+    '[data-testid="games-grid"]',
+  );
+  const emptyState = document.querySelector<HTMLElement>(
+    '[data-testid="game-search-empty"]',
+  );
+
+  if (searchInput && gamesGrid && emptyState) {
+    const games = gameCards.map((card) => {
+      const titleElement = card.querySelector<HTMLElement>(
+        '[data-testid="game-title"]',
+      );
+
+      return {
+        card,
+        title: titleElement?.textContent?.trim() ?? '',
+      };
+    });
+
+    function updateResults() {
+      const filteredTitles = filterGamesByTitle(
+        games.map((game) => ({
+          id: 0,
+          title: game.title,
+          description: '',
+          starRating: null,
+          category: null,
+          publisher: null,
+        })),
+        searchInput.value,
+      );
+
+      const matchingTitles = new Set(
+        filteredTitles.map((game) => game.title),
+      );
+
+      let visibleCount = 0;
+
+      for (const game of games) {
+        const isMatch = matchingTitles.has(game.title);
+
+        game.card.hidden = !isMatch;
+
+        if (isMatch) {
+          visibleCount += 1;
+        }
+      }
+
+      emptyState.hidden = visibleCount !== 0;
+
+      if (visibleCount === 0) {
+        emptyState.textContent = `No games found matching "${searchInput.value.trim()}".`;
+      }
+    }
+
+    searchInput.addEventListener('input', updateResults);
+  }
+</script>
