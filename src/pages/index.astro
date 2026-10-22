@@ -4,12 +4,18 @@ import GameCard from '../components/GameCard.astro';
 import PageHero from '../components/PageHero.astro';
 import EmptyState from '../components/EmptyState.astro';
 import GameSearch from '../components/GameSearch.astro';
+import Pagination from '../components/Pagination.astro';
 import { getDatabase } from '../lib/db';
-import { getAllGames } from '../lib/games';
+import { getGamesPage } from '../lib/games';
 
 export const prerender = true;
 
-const games = await getAllGames(getDatabase());
+const PAGE_SIZE = 6;
+
+const { games, page, totalPages } = await getGamesPage(getDatabase(), {
+  page: 1,
+  limit: PAGE_SIZE,
+});
 ---
 
 <Layout title="Tailspin Toys - Crowdfunding your new favorite game!">
@@ -44,6 +50,8 @@ const games = await getAllGames(getDatabase());
           >
             No games found.
           </p>
+
+          <Pagination currentPage={page} totalPages={totalPages} />
         </>
       )}
     </div>

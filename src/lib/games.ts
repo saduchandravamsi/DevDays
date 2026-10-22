@@ -1,6 +1,8 @@
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, count } from 'drizzle-orm';
 import type { Database } from './db';
+
 import { games, categories, publishers } from '../../db/schema';
+
 import type { Game } from '../types/game';
 
 const gameSelection = {
@@ -23,6 +25,19 @@ type GameSelectionRow = {
     categoryName: string | null;
     publisherId: number | null;
     publisherName: string | null;
+};
+
+export type GamesPageOptions = {
+    page: number;
+    limit: number;
+};
+
+export type GamesPage = {
+    games: Game[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
 };
 
 function mapGame(row: GameSelectionRow): Game {
@@ -52,18 +67,66 @@ function baseGamesQuery(db: Database) {
 
 /** All games ordered by title. */
 export async function getAllGames(db: Database): Promise<Game[]> {
-    const rows = await baseGamesQuery(db).orderBy(asc(games.title));
+    const rows = await baseGamesQuery(db)
+        .orderBy(asc(games.title), asc(games.id));
+
     return rows.map(mapGame);
+}
+
+/** Games for a specific page, ordered by title. */
+export async function getGamesPage(
+    db: Database,
+    options: GamesPageOptions,
+): Promise<GamesPage> {
+    const { page, limit } = options;
+
+    if (!Number.isInteger(page) || page < 1) {
+        throw new Error('Page must be a positive integer');
+    }
+
+    if (!Number.isInteger(limit) || limit < 1) {
+        throw new Error('Limit must be a positive integer');
+    }
+
+    const [{ total }] = await db
+        .select({ total: count() })
+        .from(games);
+
+    const offset = (page - 1) * limit;
+    const totalPages = Math.ceil(total / limit);
+
+    const rows = await baseGamesQuery(db)
+        .orderBy(asc(games.title), asc(games.id))
+        .limit(limit)
+        .offset(offset);
+
+    return {
+        games: rows.map(mapGame),
+        page,
+        limit,
+        total,
+        totalPages,
+    };
 }
 
 /** All game ids ordered by title. */
 export async function getAllGameIds(db: Database): Promise<number[]> {
-    const rows = await db.select({ id: games.id }).from(games).orderBy(asc(games.title));
+    const rows = await db
+        .select({ id: games.id })
+        .from(games)
+        .orderBy(asc(games.title), asc(games.id));
+
     return rows.map((row) => row.id);
 }
 
 /** A single game by id, or null when it does not exist. */
-export async function getGameById(db: Database, id: number): Promise<Game | null> {
-    const row = await baseGamesQuery(db).where(eq(games.id, id)).get();
+export async function getGameById(
+    db: Database,
+    id: number,
+): Promise<Game | null> {
+    const row = await baseGamesQuery(db)
+        .where(eq(games.id, id))
+        .get();
+
     return row ? mapGame(row) : null;
 }
