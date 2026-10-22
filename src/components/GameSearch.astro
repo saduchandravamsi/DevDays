@@ -1,96 +1,234 @@
 ---
 ---
 
-<div class="mb-8">
+<div class="mb-6">
   <label
     for="game-search"
-    class="block text-sm font-medium text-slate-200 mb-2"
+    class="block text-sm font-medium text-slate-300 mb-2"
   >
     Search games by title
   </label>
 
-  <div class="relative max-w-xl">
-    <input
-      id="game-search"
-      type="search"
-      placeholder="Search games..."
-      autocomplete="off"
-      data-testid="game-search"
-      class="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-      aria-describedby="game-search-help"
-    />
-
-    <p
-      id="game-search-help"
-      class="mt-2 text-sm text-slate-400"
-    >
-      Search by game title.
-    </p>
-  </div>
+  <input
+    id="game-search"
+    type="search"
+    placeholder="Search games..."
+    autocomplete="off"
+    class="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+    data-testid="game-search"
+  />
 </div>
 
 <script>
   import { filterGamesByTitle } from '../lib/gameSearch';
 
-  const searchInput = document.querySelector<HTMLInputElement>('#game-search');
-  const gameCards = Array.from(
-    document.querySelectorAll<HTMLElement>('[data-testid="game-card"]'),
-  );
-  const gamesGrid = document.querySelector<HTMLElement>(
+  const searchInput = document.querySelector(
+    '#game-search',
+  ) as HTMLInputElement | null;
+
+  const gamesGrid = document.querySelector(
     '[data-testid="games-grid"]',
-  );
-  const emptyState = document.querySelector<HTMLElement>(
+  ) as HTMLElement | null;
+
+  const allGamesTemplate = document.querySelector(
+    '#all-games-template',
+  ) as HTMLTemplateElement | null;
+
+  const emptyState = document.querySelector(
     '[data-testid="game-search-empty"]',
-  );
+  ) as HTMLElement | null;
 
-  if (searchInput && gamesGrid && emptyState) {
-    const games = gameCards.map((card) => {
-      const titleElement = card.querySelector<HTMLElement>(
-        '[data-testid="game-title"]',
-      );
+  const normalPagination = document.querySelector(
+    '[data-testid="pagination"]',
+  ) as HTMLElement | null;
 
-      return {
-        card,
-        title: titleElement?.textContent?.trim() ?? '',
-      };
-    });
+  if (
+    searchInput &&
+    gamesGrid &&
+    allGamesTemplate &&
+    emptyState
+  ) {
+    const allCards = Array.from(
+      allGamesTemplate.content.querySelectorAll(
+        '[data-testid="game-card"]',
+      ),
+    );
 
-    function updateResults() {
-      const filteredTitles = filterGamesByTitle(
-        games.map((game) => ({
-          id: 0,
+    const allGames = allCards.map((card) => ({
+      id: Number(card.getAttribute('data-game-id')),
+      title: card.getAttribute('data-game-title') ?? '',
+      card,
+    }));
+
+    const PAGE_SIZE = 6;
+
+    let currentSearchPage = 1;
+
+    const searchPagination = document.createElement('nav');
+
+    searchPagination.className =
+      'flex items-center justify-center gap-4 mt-10';
+
+    searchPagination.setAttribute(
+      'aria-label',
+      'Search results pagination',
+    );
+
+    searchPagination.setAttribute(
+      'data-testid',
+      'search-pagination',
+    );
+
+    searchPagination.hidden = true;
+
+    gamesGrid.parentElement?.appendChild(searchPagination);
+
+    function updateSearchResults(searchTerm: string) {
+      const filteredGames = filterGamesByTitle(
+        allGames.map((game) => ({
+          id: game.id,
           title: game.title,
           description: '',
           starRating: null,
           category: null,
           publisher: null,
         })),
-        searchInput.value,
+        searchTerm,
       );
 
-      const matchingTitles = new Set(
-        filteredTitles.map((game) => game.title),
+      const filteredIds = new Set(
+        filteredGames.map((game) => game.id),
       );
 
-      let visibleCount = 0;
+      const matchingCards = allGames.filter((game) =>
+        filteredIds.has(game.id),
+      );
 
-      for (const game of games) {
-        const isMatch = matchingTitles.has(game.title);
+      const totalPages = Math.ceil(
+        matchingCards.length / PAGE_SIZE,
+      );
 
-        game.card.hidden = !isMatch;
-
-        if (isMatch) {
-          visibleCount += 1;
-        }
+      if (currentSearchPage > totalPages && totalPages > 0) {
+        currentSearchPage = totalPages;
       }
 
-      emptyState.hidden = visibleCount !== 0;
+      if (matchingCards.length === 0) {
+        currentSearchPage = 1;
+      }
 
-      if (visibleCount === 0) {
-        emptyState.textContent = `No games found matching "${searchInput.value.trim()}".`;
+      const startIndex =
+        (currentSearchPage - 1) * PAGE_SIZE;
+
+      const endIndex = startIndex + PAGE_SIZE;
+
+      const visibleCards = matchingCards.slice(
+        startIndex,
+        endIndex,
+      );
+
+      gamesGrid.innerHTML = '';
+
+      visibleCards.forEach(({ card }) => {
+        gamesGrid.appendChild(card.cloneNode(true));
+      });
+
+      emptyState.hidden = matchingCards.length !== 0;
+
+      if (matchingCards.length === 0) {
+        emptyState.textContent =
+          `No games found matching "${searchTerm.trim()}".`;
+      }
+
+      const isSearching = searchTerm.trim() !== '';
+
+      if (normalPagination) {
+        normalPagination.hidden = isSearching;
+      }
+
+      searchPagination.hidden =
+        !isSearching || totalPages <= 1;
+
+      if (isSearching) {
+        renderSearchPagination(totalPages);
       }
     }
 
-    searchInput.addEventListener('input', updateResults);
+    function renderSearchPagination(totalPages: number) {
+      searchPagination.innerHTML = '';
+
+      if (totalPages <= 1) {
+        return;
+      }
+
+      const previousButton =
+        document.createElement('button');
+
+      previousButton.type = 'button';
+      previousButton.textContent = '← Previous';
+
+      previousButton.disabled = currentSearchPage === 1;
+
+      previousButton.className =
+        'px-4 py-2 rounded-lg bg-slate-800 text-slate-100 border border-slate-700 hover:border-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+
+      previousButton.setAttribute(
+        'data-testid',
+        'search-pagination-previous',
+      );
+
+      previousButton.addEventListener('click', () => {
+        if (currentSearchPage > 1) {
+          currentSearchPage--;
+          updateSearchResults(searchInput.value);
+        }
+      });
+
+      const pageIndicator = document.createElement('span');
+
+      pageIndicator.textContent =
+        `Page ${currentSearchPage} of ${totalPages}`;
+
+      pageIndicator.className = 'text-slate-300';
+
+      pageIndicator.setAttribute(
+        'data-testid',
+        'search-pagination-current',
+      );
+
+      const nextButton =
+        document.createElement('button');
+
+      nextButton.type = 'button';
+      nextButton.textContent = 'Next →';
+
+      nextButton.disabled =
+        currentSearchPage === totalPages;
+
+      nextButton.className =
+        'px-4 py-2 rounded-lg bg-slate-800 text-slate-100 border border-slate-700 hover:border-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+
+      nextButton.setAttribute(
+        'data-testid',
+        'search-pagination-next',
+      );
+
+      nextButton.addEventListener('click', () => {
+        if (currentSearchPage < totalPages) {
+          currentSearchPage++;
+          updateSearchResults(searchInput.value);
+        }
+      });
+
+      searchPagination.append(
+        previousButton,
+        pageIndicator,
+        nextButton,
+      );
+    }
+
+    searchInput.addEventListener('input', () => {
+      currentSearchPage = 1;
+      updateSearchResults(searchInput.value);
+    });
   }
 </script>
